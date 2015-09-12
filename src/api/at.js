@@ -5,6 +5,7 @@ var EPOCH_KEY = 'a471a096baaa08c893f48a909d0ae3d3'; // Yes, really - AT requires
 var API_KEY = 'c2799f9d4f593eb7d77f2ccf6a509521';
 var API_SECRET = 'da999252e5b90e7dee0e69a735ec23df';
 
+// We need to know much our time differs from the server time, since signatures are time-based
 function calculateDrift(callback, error) {
   // Assumed not to change while the watch is displayed
   if (calculateDrift._drift) {
@@ -20,6 +21,9 @@ function calculateDrift(callback, error) {
   }
 }
 
+// Signature = HMAC-SHA1(<SECRET>, <current time><KEY>)
+//  -- that's right, we sign the *time*, not the url, so the same signature can be used for any request we like until it times out
+//     (experiments suggest signatures are valid for 10-15 seconds either side of their timestamp)
 function sign(callback, error) {
   calculateDrift(function(drift) {
     var unixTimestampSeconds = Math.floor(new Date().getTime() / 1000) - drift;
