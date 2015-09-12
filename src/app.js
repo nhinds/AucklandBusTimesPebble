@@ -1,16 +1,8 @@
-var detectcloud = require('detectcloud');
-var FAKE_AJAX = detectcloud.isCloudPebble();
-
 var UI = require('ui');
 var Vector2 = require('vector2');
 var Vibe = require('ui/vibe');
 var config = require('config');
-var ajax;
-if (FAKE_AJAX) {
-  ajax = require('fakejax');
-} else {
-  ajax = require('ajax');
-}
+var api = require('api/maxx');
 
 var CONFIG_VERSION = 1;
 
@@ -53,22 +45,7 @@ config.init(function() {
   initStop(0);
 });
 
-function parseDate(date) {
-  if (date.indexOf('/Date(') === 0 && date.indexOf(')/') === date.length - 2) {
-    var dateString = date.substring(6, date.length - 2);
-    return new Date(parseInt(dateString));
-  }
-}
-
-function timeOf(date) {
-  var minutes = date.getMinutes();
-  if (minutes < 10) {
-    minutes = '0' + minutes;
-  }
-  return date.getHours() + ':' + minutes;
-}
-
-function displayStop(stop, fresh, result) {
+function displayStop(stop, fresh, buses) {
   var window;
   if (fresh) {
     window = new UI.Window();
@@ -104,7 +81,7 @@ function displayStop(stop, fresh, result) {
   var ROW_1_HEIGHT = 24;
   var ROW_2_HEIGHT = 18;
   var TOTAL_HEIGHT = ROW_1_HEIGHT + ROW_2_HEIGHT;
-  result.slice(0,3).forEach(function(bus, index) {
+  buses.slice(0,3).forEach(function(bus, index) {
     var pos = HEADER_HEIGHT + TOTAL_HEIGHT * index;
     window.add(new UI.Text({
       position: new Vector2(1, pos),
@@ -166,61 +143,22 @@ function displayStop(stop, fresh, result) {
 }
 
 function fetchStop(stop, vibrateOnSuccess) {
-  function finished(result) {
+  function finished(buses) {
+    console.log('Buses: ' + JSON.stringify(buses));
     if (stop == stops[currentIndex]) {
       if (vibrateOnSuccess) {
         Vibe.vibrate('short');
       }
-      displayStop(stop, false, result);
+      displayStop(stop, false, buses);
     } else {
-      console.log('Discarding late AJAX result for stop ' + stop.code + ', now on stop ' + stops[currentIndex].code);
+      console.log('Discarding late result for stop ' + stop.code + ', now on stop ' + stops[currentIndex].code);
     }
   }
   function error(errorString) {
     console.log('Error: ' + JSON.stringify(errorString));
     Vibe.vibrate('double');
   }
-  ajax({url: 'http://api.maxx.co.nz/RealTime/v2/Departures/Stop/' + stop.code + '?hours=6', type: 'json'},
-       function(response) {
-         console.log('Response: ' + JSON.stringify(response));
-         if (response.Error) {
-           error(response.Error.Description || response.Error);
-         } else {
-           var movements = response.Movements;
-           if (!movements.length) {
-             error('No Data');
-           } else {
-             var buses = movements.map(function(movement) {
-               var scheduledArrival = parseDate(movement.ActualArrivalTime);
-               var scheduledTime = timeOf(scheduledArrival);
-               var arrivalHint;
-               if (movement.ExpectedArrivalTime) {
-                 var expectedArrival = parseDate(movement.ExpectedArrivalTime);
-                 var now = new Date();
-                 var remainingMinutes = Math.floor((expectedArrival - now) / 60 / 1000);
-                 if (remainingMinutes < 1) {
-                   arrivalHint = '*';
-                 } else {
-                   arrivalHint = remainingMinutes;
-                 }
-               } else {
-                 arrivalHint = '';
-               }
-               return {
-                 route: movement.Route,
-                 destination: movement.DestinationDisplay,
-                 scheduled: scheduledTime,
-                 arrivalHint: arrivalHint
-               };
-             });
-             console.log('Buses: ' + JSON.stringify(buses));
-             finished(buses);
-           }
-         }
-       },
-       function(e) {
-         error(e);
-       });
+  api.fetchStop(stop.code, finished, error);
 }
 
 function initStop(stopIndex) {
