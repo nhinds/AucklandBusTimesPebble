@@ -7,14 +7,6 @@ function parseDate(date) {
   }
 }
 
-function timeOf(date) {
-  var minutes = date.getMinutes();
-  if (minutes < 10) {
-    minutes = '0' + minutes;
-  }
-  return date.getHours() + ':' + minutes;
-}
-
 function fetchStop(stopCode, success, error) {
   ajax({url: 'http://api.maxx.co.nz/RealTime/v2/Departures/Stop/' + stopCode + '?hours=6', type: 'json'},
        function(response) {
@@ -28,25 +20,17 @@ function fetchStop(stopCode, success, error) {
            } else {
              var buses = movements.map(function(movement) {
                var scheduledArrival = parseDate(movement.ActualArrivalTime);
-               var scheduledTime = timeOf(scheduledArrival);
-               var arrivalHint;
+               var expectedArrival;
                if (movement.ExpectedArrivalTime) {
-                 var expectedArrival = parseDate(movement.ExpectedArrivalTime);
-                 var now = new Date();
-                 var remainingMinutes = Math.floor((expectedArrival - now) / 60 / 1000);
-                 if (remainingMinutes < 1) {
-                   arrivalHint = '*';
-                 } else {
-                   arrivalHint = remainingMinutes;
-                 }
+                 expectedArrival = parseDate(movement.ExpectedArrivalTime);
                } else {
-                 arrivalHint = '';
+                 expectedArrival = null;
                }
                return {
                  route: movement.Route,
                  destination: movement.DestinationDisplay,
-                 scheduled: scheduledTime,
-                 arrivalHint: arrivalHint
+                 scheduled: scheduledArrival,
+                 expected: expectedArrival
                };
              });
              success(buses);

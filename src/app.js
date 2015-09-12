@@ -2,7 +2,7 @@ var UI = require('ui');
 var Vector2 = require('vector2');
 var Vibe = require('ui/vibe');
 var config = require('config');
-var api = require('api/maxx');
+var api = require('api/at');
 
 var CONFIG_VERSION = 1;
 
@@ -44,6 +44,28 @@ config.init(function() {
   saveConfigToLocalStorage(stops);
   initStop(0);
 });
+
+function timeOf(date) {
+  var minutes = date.getMinutes();
+  if (minutes < 10) {
+    minutes = '0' + minutes;
+  }
+  return date.getHours() + ':' + minutes;
+}
+
+function arrivalHint(expectedArrival) {
+  if (expectedArrival) {
+    var now = new Date();
+    var remainingMinutes = Math.floor((expectedArrival - now) / 60 / 1000);
+    if (remainingMinutes < 1) {
+      return '*';
+    } else {
+      return remainingMinutes;
+    }
+  } else {
+    return '';
+  }
+}
 
 function displayStop(stop, fresh, buses) {
   var window;
@@ -96,7 +118,7 @@ function displayStop(stop, fresh, buses) {
       position: new Vector2(103, pos),
       size: new Vector2(40, ROW_1_HEIGHT),
       font: 'gothic-24',
-      text: bus.scheduled,
+      text: timeOf(bus.scheduled),
       color: 'black',
       textAlign: 'right',
       textOverflow: 'fill',
@@ -114,7 +136,7 @@ function displayStop(stop, fresh, buses) {
       position: new Vector2(122, pos + ROW_1_HEIGHT),
       size: new Vector2(20, ROW_2_HEIGHT),
       font: 'gothic-18-bold',
-      text: bus.arrivalHint,
+      text: arrivalHint(bus.expected),
       color: 'black',
       textAlign: 'right',
       textOverflow: 'wrap',
